@@ -1,5 +1,7 @@
 package com.flavouroffire.restaurant
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,7 +53,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun money(value: Double) = NumberFormat.getCurrencyInstance().format(value)
+private fun money(value: Double) = "₹" + String.format(java.util.Locale.US, "%,.0f", value)
 private val tabs = listOf("home", "search", "orders", "profile")
 
 @Composable
@@ -91,17 +94,17 @@ private fun HomeScreen(state: RestaurantUiState, vm: RestaurantViewModel, nav: N
         item { TopHeader(state.cart.sumOf { it.quantity }, nav) }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Buonasera, Sofia", style = MaterialTheme.typography.displaySmall)
-                Text("What shall we cook for you tonight?", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Namaste! 🔥", style = MaterialTheme.typography.displaySmall)
+                Text("What shall we fire up for you today?", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
             Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(28.dp))) {
-                Image(painterResource(R.drawable.hero_italian), "Fresh handmade Italian dishes on a dining table", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                Image(painterResource(R.drawable.dish_pizza), "Flame-grilled tandoori dishes", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.onBackground.copy(alpha = .45f)))
                 Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("A little taste of Italy", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.background)
-                    Text("10% off your first Flavour of Fire order", color = MaterialTheme.colorScheme.background)
+                    Text("Flavour of Fire · We Made It Easy", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.background)
+                    Text("Free delivery within 3 km on orders above ₹599", color = MaterialTheme.colorScheme.background)
                 }
             }
         }
@@ -113,7 +116,7 @@ private fun HomeScreen(state: RestaurantUiState, vm: RestaurantViewModel, nav: N
 
 @Composable
 private fun TopHeader(count: Int, nav: NavController) = Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-    Column(Modifier.weight(1f)) { Text("DELIVERING TO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary); Text("24 Via Roma, Milan", fontWeight = FontWeight.SemiBold) }
+    Column(Modifier.weight(1f)) { Text("FLAVOUR OF FIRE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary); Text("D4, Sector 85, Faridabad", fontWeight = FontWeight.SemiBold) }
     BadgedBox(badge = { if (count > 0) Badge { Text(count.toString()) } }) { IconButton(onClick = { nav.navigate("cart") }) { Icon(Icons.Outlined.ShoppingBag, "Open cart") } }
 }
 
@@ -122,7 +125,7 @@ private fun BrowseScreen(state: RestaurantUiState, vm: RestaurantViewModel, nav:
     val results = vm.filteredDishes(state)
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Row(verticalAlignment = Alignment.CenterVertically) { Text("Find your favorite", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f)); IconButton({ nav.navigate("cart") }) { Icon(Icons.Outlined.ShoppingBag, "Cart") } } }
-        item { OutlinedTextField(state.query, vm::setQuery, Modifier.fillMaxWidth(), placeholder = { Text("Search pasta, pizza, dessert…") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true, shape = RoundedCornerShape(18.dp)) }
+        item { OutlinedTextField(state.query, vm::setQuery, Modifier.fillMaxWidth(), placeholder = { Text("Search tikka, biryani, dosa…") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true, shape = RoundedCornerShape(18.dp)) }
         item { CategoryRow(state.category, vm::setCategory) }
         item { Text("${results.size} dishes", style = MaterialTheme.typography.titleMedium) }
         items(results) { dish -> DishCard(dish, dish.id in state.favorites, { vm.toggleFavorite(dish.id) }) { nav.navigate("dish/${dish.id}") } }
@@ -143,7 +146,11 @@ private fun DishCard(dish: Dish, favorite: Boolean, toggle: () -> Unit, open: ()
             Column(Modifier.weight(1f).heightIn(min = 112.dp), verticalArrangement = Arrangement.SpaceBetween) {
                 Row { Text(dish.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis); IconButton(toggle, Modifier.size(40.dp)) { Icon(if (favorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, "Favorite", tint = MaterialTheme.colorScheme.primary) } }
                 Text(dish.description, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
-                Row { Text("★ ${dish.rating}  ·  ${dish.minutes} min", modifier = Modifier.weight(1f)); Text(money(dish.price), fontWeight = FontWeight.Bold) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (dish.vegetarian) "\uD83D\uDFE2 Veg" else "\uD83D\uDD34 Non-Veg", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    if (dish.priceHalf != null) Text("Half ${money(dish.priceHalf)} · Full ${money(dish.priceFull)}", fontWeight = FontWeight.Bold)
+                    else Text(money(dish.priceFull), fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -151,15 +158,15 @@ private fun DishCard(dish: Dish, favorite: Boolean, toggle: () -> Unit, open: ()
 
 @Composable
 private fun DishScreen(dish: Dish, state: RestaurantUiState, vm: RestaurantViewModel, nav: NavController) {
-    var size by remember { mutableStateOf("Regular") }; var extras by remember { mutableStateOf(setOf<String>()) }; var quantity by remember { mutableIntStateOf(1) }
-    val unit = dish.price + (if (size == "Grande") 4.0 else 0.0) + extras.size * 2.5
+    var size by remember { mutableStateOf("Full") }; var extras by remember { mutableStateOf(setOf<String>()) }; var quantity by remember { mutableIntStateOf(1) }
+    val unit = (if (size == "Half" && dish.priceHalf != null) dish.priceHalf else dish.priceFull) + extras.size * 20.0
     Scaffold(topBar = { TopAppBar(title = {}, navigationIcon = { IconButton({ nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "Back") } }, actions = { IconButton({ vm.toggleFavorite(dish.id) }) { Icon(if (dish.id in state.favorites) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, "Favorite") } }) }, bottomBar = { Button({ vm.addToCart(dish, size, extras, quantity); nav.navigate("cart") }, Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp).height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("Add to bag  ·  ${money(unit * quantity)}") } }) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(bottom = 100.dp)) {
             item { Image(painterResource(dish.image), dish.name, Modifier.fillMaxWidth().height(280.dp), contentScale = ContentScale.Crop) }
             item { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                Text(dish.name, style = MaterialTheme.typography.displaySmall); Text("★ ${dish.rating}  ·  ${dish.minutes} min  ·  ${if (dish.vegetarian) "Vegetarian" else "Chef's selection"}", color = MaterialTheme.colorScheme.secondary); Text(dish.description, style = MaterialTheme.typography.bodyLarge)
-                Text("Choose a size", style = MaterialTheme.typography.titleLarge); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Regular", "Grande").forEach { FilterChip(size == it, { size = it }, { Text(if (it == "Grande") "$it  +${money(4.0)}" else it) }) } }
-                Text("Add something extra", style = MaterialTheme.typography.titleLarge); listOf("Burrata", "Truffle", "Chilli oil").forEach { extra -> Row(Modifier.fillMaxWidth().clickable { extras = if (extra in extras) extras - extra else extras + extra }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Checkbox(extra in extras, { checked -> extras = if (checked) extras + extra else extras - extra }); Text(extra, Modifier.weight(1f)); Text("+${money(2.5)}") } }
+                Text(dish.name, style = MaterialTheme.typography.displaySmall); Text("${if (dish.vegetarian) "\uD83D\uDFE2 Vegetarian" else "\uD83D\uDD34 Non-Vegetarian"}  ·  ${dish.category}", color = MaterialTheme.colorScheme.secondary); Text(dish.description, style = MaterialTheme.typography.bodyLarge)
+                if (dish.priceHalf != null) { Text("Choose a portion", style = MaterialTheme.typography.titleLarge); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Half" to dish.priceHalf, "Full" to dish.priceFull).forEach { (label, p) -> FilterChip(size == label, { size = label }, { Text("$label · ${money(p)}") }) } } }
+                Text("Add something extra", style = MaterialTheme.typography.titleLarge); listOf("Extra Butter", "Extra Cheese", "Extra Spicy").forEach { extra -> Row(Modifier.fillMaxWidth().clickable { extras = if (extra in extras) extras - extra else extras + extra }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Checkbox(extra in extras, { checked -> extras = if (checked) extras + extra else extras - extra }); Text(extra, Modifier.weight(1f)); Text("+${money(20.0)}") } }
                 Row(verticalAlignment = Alignment.CenterVertically) { Text("Quantity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f)); QuantityControl(quantity, { if (quantity > 1) quantity-- }, { quantity++ }) }
             } }
         }
@@ -182,7 +189,7 @@ private fun CheckoutScreen(state: RestaurantUiState, vm: RestaurantViewModel, na
     var payment by remember { mutableStateOf("Visa •••• 4242") }
     Scaffold(topBar = { TopAppBar(title = { Text("Checkout") }, navigationIcon = { IconButton({ nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "Back") } }) }, bottomBar = { Button({ vm.placeOrder(); nav.navigate("success") { popUpTo("home") } }, Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp).height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("Place order  ·  ${money(state.total)}") } }) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 100.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            item { CheckoutBlock("Delivery address", Icons.Outlined.LocationOn, "24 Via Roma, Milan", "Apartment 4B · Ring Sofia") }
+            item { CheckoutBlock("Delivery address", Icons.Outlined.LocationOn, "Your saved address", "Sector 85, Faridabad, Haryana") }
             item { CheckoutBlock("Delivery time", Icons.Outlined.Schedule, "As soon as possible", "25–35 minutes") }
             item { Text("Payment", style = MaterialTheme.typography.titleLarge); listOf("Visa •••• 4242", "Cash on delivery").forEach { option -> Row(Modifier.fillMaxWidth().clickable { payment = option }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(payment == option, { payment = option }); Text(option) } }; Text("Prototype only — no payment details are collected.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             item { HorizontalDivider(); Summary(state) }
@@ -195,15 +202,38 @@ private fun SuccessScreen(state: RestaurantUiState, nav: NavController) {
     val order = state.order
     Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Spacer(Modifier.height(28.dp)); Surface(shape = RoundedCornerShape(100.dp), color = MaterialTheme.colorScheme.secondary) { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.padding(20.dp).size(36.dp)) }
-        Text("Grazie!", style = MaterialTheme.typography.displaySmall); Text("Your order ${order?.number} is in the kitchen.", style = MaterialTheme.typography.bodyLarge)
+        Text("Dhanyavaad! 🔥", style = MaterialTheme.typography.displaySmall); Text("Your order ${order?.number} is in the kitchen.", style = MaterialTheme.typography.bodyLarge)
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) { Text("Arriving in ${order?.eta}", style = MaterialTheme.typography.titleLarge); StatusRow(true, "Order confirmed", "We received your order"); StatusRow(true, "In the kitchen", "The chefs are getting started"); StatusRow(false, "On its way", "Your courier will collect it soon") } }
         Button({ nav.navigate("orders") }, Modifier.fillMaxWidth().height(54.dp)) { Text("Track my order") }; TextButton({ nav.navigate("home") }) { Text("Back to menu") }
     }
 }
 
-@Composable private fun OrdersScreen(state: RestaurantUiState, nav: NavController) = Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { Text("Your orders", style = MaterialTheme.typography.displaySmall); if (state.order == null) EmptyState("No orders yet. Your next Italian favorite is close.", "Browse menu") { nav.navigate("home") } else Card(onClick = { nav.navigate("success") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Order ${state.order.number}", style = MaterialTheme.typography.titleLarge); Text("In the kitchen", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold); Text("${state.order.lines.sumOf { it.quantity }} items · ${money(state.order.total)}"); LinearProgressIndicator(.5f, Modifier.fillMaxWidth()) } } }
+@Composable private fun OrdersScreen(state: RestaurantUiState, nav: NavController) = Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { Text("Your orders", style = MaterialTheme.typography.displaySmall); if (state.order == null) EmptyState("No orders yet. Your next flame-grilled favourite is close.", "Browse menu") { nav.navigate("home") } else Card(onClick = { nav.navigate("success") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Order ${state.order.number}", style = MaterialTheme.typography.titleLarge); Text("In the kitchen", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold); Text("${state.order.lines.sumOf { it.quantity }} items · ${money(state.order.total)}"); LinearProgressIndicator(.5f, Modifier.fillMaxWidth()) } } }
 
-@Composable private fun ProfileScreen() = LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) { item { Text("Your table", style = MaterialTheme.typography.displaySmall) }; item { Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Guest Profile", style = MaterialTheme.typography.titleLarge); Text("Prototype guest profile"); Text("Faridabad, Haryana", color = MaterialTheme.colorScheme.onSurfaceVariant) } } }; items(listOf("Delivery addresses" to Icons.Outlined.LocationOn, "Dietary preferences (Veg / Non-Veg)" to Icons.Outlined.Spa, "Notifications" to Icons.Outlined.Notifications, "Help & contact" to Icons.Outlined.HelpOutline)) { (label, icon) -> ListItem(headlineContent = { Text(label) }, leadingContent = { Icon(icon, null) }, trailingContent = { Icon(Icons.Default.ChevronRight, null) }) }; item { Text("Flavour of Fire · Grill, Tandoor \u0026 Curry Kitchen\nOpen daily 11:30–23:00 · Call to reserve a table", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+@Composable private fun ProfileScreen() {
+    val context = LocalContext.current
+    LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        item { Text("Flavour of Fire", style = MaterialTheme.typography.displaySmall) }
+        item { Image(painterResource(R.drawable.logo_fof), "Flavour of Fire logo", Modifier.size(120.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop) }
+        item { Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("We Made It Easy", style = MaterialTheme.typography.titleLarge)
+            Text("D4, Sector 85, D Block Market,\nBeside Bank of Maharashtra,\nFaridabad, Haryana", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("North Indian · South Indian · Chinese · Beverages", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Free delivery within 3 km on orders above ₹599 · Prices exclude taxes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } } }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf("+91 9971143900", "+91 9971769713").forEach { number ->
+                    OutlinedButton({ context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))) }) {
+                        Icon(Icons.Outlined.Call, null); Spacer(Modifier.width(6.dp)); Text(number)
+                    }
+                }
+            }
+        }
+        items(listOf("Delivery addresses" to Icons.Outlined.LocationOn, "Dietary preferences (Veg / Non-Veg)" to Icons.Outlined.Spa, "Notifications" to Icons.Outlined.Notifications, "Help & contact" to Icons.Outlined.HelpOutline)) { (label, icon) -> ListItem(headlineContent = { Text(label) }, leadingContent = { Icon(icon, null) }, trailingContent = { Icon(Icons.Default.ChevronRight, null) }) }
+        item { Text("Also available for birthday parties, kitty parties, functions and small gatherings.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
 
 @Composable private fun Summary(state: RestaurantUiState) = Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { SummaryRow("Subtotal", state.subtotal); if (state.discount > 0) SummaryRow("FIRE10", -state.discount); SummaryRow("Delivery", state.delivery); HorizontalDivider(); SummaryRow("Total", state.total, true) }
 @Composable private fun SummaryRow(label: String, value: Double, bold: Boolean = false) = Row(Modifier.fillMaxWidth()) { Text(label, Modifier.weight(1f), fontWeight = if (bold) FontWeight.Bold else null); Text(money(value), fontWeight = if (bold) FontWeight.Bold else null) }

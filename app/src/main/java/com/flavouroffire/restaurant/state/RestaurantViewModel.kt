@@ -29,7 +29,7 @@ class RestaurantViewModel : ViewModel() {
     }
     fun applyPromo() = _state.update { it.copy(promoApplied = true) }
     fun placeOrder() = _state.update { state ->
-        state.copy(order = Order("TV-2841", state.cart, state.total, "25–35 min"), cart = emptyList(), promoApplied = false)
+        state.copy(order = Order("FOF-2841", state.cart, state.total, "25–35 min"), cart = emptyList(), promoApplied = false)
     }
     fun filteredDishes(state: RestaurantUiState): List<Dish> = menu.filter {
         (state.category == "All" || it.category == state.category) &&
